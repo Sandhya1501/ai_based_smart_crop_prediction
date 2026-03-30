@@ -1,1 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Smart Room Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
 
+<div class="datetime" id="datetime"></div>
+
+<center><h1>🏠 Smart Storage Room Dashboard</h1></center>
+
+<div class="main-container">
+
+    <div class="left-graphs">
+        <h3>📅 2026 Temperature</h3>
+        <canvas id="pastChart"></canvas>
+
+        <h3>📊 2025 Temperature</h3>
+        <canvas id="yearChart"></canvas>
+    </div>
+
+    <div class="center-content">
+
+        <div class="top-container">
+            <div class="card">
+                <h2>🌡️ Temperature</h2>
+                <p id="temp">-- °C</p>
+            </div>
+
+            <div class="card">
+                <h2>💧 Humidity</h2>
+                <p id="humidity">-- %</p>
+            </div>
+        </div>
+
+        <div class="graph-container">
+            <canvas id="sensorChart"></canvas>
+        </div>
+
+    </div>
+
+    <div class="image-container">
+        <h3>🌾 Paddy Storage House</h3>
+        <img src="/static/warehouse.png">
+    </div>
+
+</div>
+
+<!-- 🔥 ANIMATED FANS -->
+<div class="fan-container">
+
+    <div class="fan-card">
+        <h3>Fan 1</h3>
+        <div class="fan" id="fan1">
+            <div class="spiral"></div>
+            <div class="grill"></div>
+        </div>
+
+        <button class="off" onclick="setFanAndAnimate('fan1',0)">OFF</button>
+        <button class="low" onclick="setFanAndAnimate('fan1',1)">LOW</button>
+        <button class="med" onclick="setFanAndAnimate('fan1',2)">MED</button>
+        <button class="high" onclick="setFanAndAnimate('fan1',3)">HIGH</button>
+    </div>
+
+    <div class="fan-card">
+        <h3>Fan 2</h3>
+        <div class="fan" id="fan2">
+            <div class="spiral"></div>
+            <div class="grill"></div>
+        </div>
+
+        <button class="off" onclick="setFanAndAnimate('fan2',0)">OFF</button>
+        <button class="low" onclick="setFanAndAnimate('fan2',1)">LOW</button>
+        <button class="med" onclick="setFanAndAnimate('fan2',2)">MED</button>
+        <button class="high" onclick="setFanAndAnimate('fan2',3)">HIGH</button>
+    </div>
+
+    <div class="fan-card">
+        <h3>Fan 3</h3>
+        <div class="fan" id="fan3">
+            <div class="spiral"></div>
+            <div class="grill"></div>
+        </div>
+
+        <button class="off" onclick="setFanAndAnimate('fan3',0)">OFF</button>
+        <button class="low" onclick="setFanAndAnimate('fan3',1)">LOW</button>
+        <button class="med" onclick="setFanAndAnimate('fan3',2)">MED</button>
+        <button class="high" onclick="setFanAndAnimate('fan3',3)">HIGH</button>
+    </div>
+
+</div>
+
+<script>
+
+// DATE TIME
+setInterval(()=>{
+    document.getElementById("datetime").innerText =
+        new Date().toLocaleString();
+},1000);
+
+// LIVE GRAPH
+let labels=[],tempData=[],humidityData=[];
+
+const liveChart=new Chart(document.getElementById('sensorChart'),{
+    type:'line',
+    data:{
+        labels:labels,
+        datasets:[
+            {label:'Temperature',data:tempData,borderColor:'red'},
+            {label:'Humidity',data:humidityData,borderColor:'blue'}
+        ]
+    }
+});
+
+async function fetchData(){
+    let res=await fetch('/data');
+    let d=await res.json();
+
+    temp.innerText=d.temperature+" °C";
+    humidity.innerText=d.humidity+" %";
+
+    let t=new Date().toLocaleTimeString();
+
+    labels.push(t);
+    tempData.push(d.temperature);
+    humidityData.push(d.humidity);
+
+    if(labels.length>10){
+        labels.shift();tempData.shift();humidityData.shift();
+    }
+
+    liveChart.update();
+}
+setInterval(fetchData,2000);
+fetchData();
+
+// OTHER GRAPHS SAME
+fetch('/past-data').then(r=>r.json()).then(data=>{
+    new Chart(pastChart,{
+        type:'bar',
+        data:{
+            labels:data.map(d=>d.day),
+            datasets:[
+                {label:'Temp',data:data.map(d=>d.temperature)},
+                {label:'Humidity',data:data.map(d=>d.humidity)}
+            ]
+        }
+    });
+});
+
+fetch('/last-year').then(r=>r.json()).then(data=>{
+    new Chart(yearChart,{
+        type:'',
+        data:{
+            labels:data.map(d=>d.day),
+            datasets:[
+                {label:'Temp',data:data.map(d=>d.temperature)},
+                {label:'Humidity',data:data.map(d=>d.humidity)}
+            ]
+        }
+    });
+});
+
+// FAN + ANIMATION
+function changeGraphColor(speed){
+    let color=["gray","green","orange","red"][speed];
+    liveChart.data.datasets[0].borderColor=color;
+    liveChart.data.datasets[1].borderColor=color;
+    liveChart.update();
+}
+
+async function setFan(fan,speed){
+    await fetch('/set_fan',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({fan,speed})
+    });
+    changeGraphColor(speed);
+}
+
+function setFanAndAnimate(fanId,speed){
+    setFan(fanId,speed);
+
+    let fan=document.getElementById(fanId);
+    fan.classList.remove("low","medium","high");
+
+    if(speed===1) fan.classList.add("low");
+    if(speed===2) fan.classList.add("medium");
+    if(speed===3) fan.classList.add("high");
+}
+
+</script>
+
+</body>
+</html>
